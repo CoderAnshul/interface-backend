@@ -1,6 +1,6 @@
 # ignore env and firebase-service-account.json
 .env
-firebase-service-account.json
+# firebase-service-account.json
 
 config/firebase-service-account.json
 node_modules
