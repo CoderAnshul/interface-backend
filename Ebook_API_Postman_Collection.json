@@ -1,0 +1,253 @@
+{
+    "info": {
+        "_postman_id": "ebook-api-collection",
+        "name": "Ebooks API",
+        "description": "Collection for testing Ebook API features: Listing, Preview, and Download.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Get All Ebooks",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/ebooks",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "ebooks"
+                    ]
+                },
+                "description": "Retrieve all public ebooks with optional pagination and search."
+            },
+            "response": []
+        },
+        {
+            "name": "Get Ebook By Slug",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/ebooks/slug/:slug",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "ebooks",
+                        "slug",
+                        ":slug"
+                    ],
+                    "variable": [
+                        {
+                            "key": "slug",
+                            "value": "example-ebook-slug"
+                        }
+                    ]
+                },
+                "description": "Retrieve ebook details by its slug."
+            },
+            "response": []
+        },
+        {
+            "name": "Get Ebook By ID",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/ebooks/:id",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "ebooks",
+                        ":id"
+                    ],
+                    "variable": [
+                        {
+                            "key": "id",
+                            "value": "ebook_id_here"
+                        }
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Create Ebook (Admin)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "formdata",
+                    "formdata": [
+                        {
+                            "key": "title",
+                            "value": "New Ebook",
+                            "type": "text"
+                        },
+                        {
+                            "key": "description",
+                            "value": "Example ebook description",
+                            "type": "text"
+                        },
+                        {
+                            "key": "isFree",
+                            "value": "true",
+                            "type": "text"
+                        },
+                        {
+                            "key": "thumbnail",
+                            "type": "file",
+                            "src": []
+                        },
+                        {
+                            "key": "previewFile",
+                            "type": "file",
+                            "src": []
+                        },
+                        {
+                            "key": "fullFile",
+                            "type": "file",
+                            "src": []
+                        }
+                    ]
+                },
+                "url": {
+                    "raw": "{{base_url}}/ebooks",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "ebooks"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Download Ebook",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{user_token}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/ebooks/:id/download",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "ebooks",
+                        ":id",
+                        "download"
+                    ],
+                    "variable": [
+                        {
+                            "key": "id",
+                            "value": "ebook_id_here"
+                        }
+                    ]
+                },
+                "description": "Generates a download URL for the ebook. Requires authentication for paid ebooks."
+            },
+            "response": []
+        },
+        {
+            "name": "Update Ebook (Admin)",
+            "request": {
+                "method": "PUT",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "formdata",
+                    "formdata": [
+                        {
+                            "key": "title",
+                            "value": "Updated Ebook Title",
+                            "type": "text"
+                        },
+                        {
+                            "key": "description",
+                            "value": "Updated description",
+                            "type": "text"
+                        }
+                    ]
+                },
+                "url": {
+                    "raw": "{{base_url}}/ebooks/:id",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "ebooks",
+                        ":id"
+                    ],
+                    "variable": [
+                        {
+                            "key": "id",
+                            "value": "ebook_id_here"
+                        }
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Delete Ebook (Admin)",
+            "request": {
+                "method": "DELETE",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/ebooks/:id",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "ebooks",
+                        ":id"
+                    ],
+                    "variable": [
+                        {
+                            "key": "id",
+                            "value": "ebook_id_here"
+                        }
+                    ]
+                }
+            },
+            "response": []
+        }
+    ],
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:3001"
+        },
+        {
+            "key": "admin_token",
+            "value": "your_admin_token_here"
+        },
+        {
+            "key": "user_token",
+            "value": "your_user_token_here"
+        }
+    ]
+}
