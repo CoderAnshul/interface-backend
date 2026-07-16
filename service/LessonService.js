@@ -58,7 +58,37 @@ export default class LessonService {
 
   async deleteLesson(id) {
     try {
-      return await this.lessonRepository.delete(id);
+      const Lesson = (await import('../models/Lesson.js')).default;
+      const CourseModule = (await import('../models/Module.js')).default;
+
+      const lesson = await Lesson.findById(id);
+      if (!lesson) return null;
+
+      const deletedIds = [];
+
+      const deleteRecursive = async (lessonId) => {
+        // Find and delete children
+        const children = await Lesson.find({ parentId: lessonId });
+        for (const child of children) {
+          await deleteRecursive(child._id);
+        }
+
+        // Delete the lesson
+        await this.lessonRepository.delete(lessonId);
+        deletedIds.push(lessonId);
+      };
+
+      await deleteRecursive(id);
+
+      // Clean up Module lessons array
+      if (lesson.moduleId) {
+        await CourseModule.findByIdAndUpdate(
+          lesson.moduleId,
+          { $pull: { lessons: { $in: deletedIds } } }
+        );
+      }
+
+      return lesson;
     } catch (error) {
       console.error('Error in deleteLesson:', error);
       throw error;

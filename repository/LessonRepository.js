@@ -3,6 +3,9 @@ import Lesson from '../models/Lesson.js';
 export default class LessonRepository {
   async create(data) {
     try {
+      if (data && (data.parentId === 'null' || data.parentId === 'undefined')) {
+        data.parentId = null;
+      }
       //console.log('==========================================LessonRepository.create called with data:', data);
       const lesson = await Lesson.create(data);
       //console.log('//////////////////////////LessonRepository.create success:', lesson);
@@ -101,6 +104,9 @@ async findById(id) {
 
   async update(id, data) {
     try {
+      if (data && (data.parentId === 'null' || data.parentId === 'undefined')) {
+        data.parentId = null;
+      }
       //console.log('LessonRepository.update called with id:', id, 'and data:', data);
       const updatedLesson = await Lesson.findByIdAndUpdate(id, data, { new: true })
         .populate('section', 'name')

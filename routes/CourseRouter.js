@@ -50,7 +50,16 @@ courseRouter.post(
 );
 
 // Get all courses (public)
-courseRouter.get('/contents', getCourseContents);
+courseRouter.get(
+  '/contents',
+  (req, res, next) => {
+    passport.authenticate('jwt', { session: false }, (err, user) => {
+      if (user) req.user = user;
+      next();
+    })(req, res, next);
+  },
+  getCourseContents
+);
 
 courseRouter.get('/filter', filterCourses);
 
@@ -70,7 +79,16 @@ courseRouter.get(
 
 
 // Get a course by ID (public)
-courseRouter.get('/:id', getCourseById);
+courseRouter.get(
+  '/:id',
+  (req, res, next) => {
+    passport.authenticate('jwt', { session: false }, (err, user) => {
+      if (user) req.user = user;
+      next();
+    })(req, res, next);
+  },
+  getCourseById
+);
 
 courseRouter.get('/slug/:slug', getCourseBySlug);
 

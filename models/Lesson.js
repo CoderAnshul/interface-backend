@@ -16,7 +16,13 @@ const lessonSchema = new Schema(
     },
     type: {
       type: String,
-      enum: ['video-lesson','video', 'text', 'quiz', 'assignment', 'external_link'], //img or video
+      enum: ['video-lesson', 'video', 'text', 'quiz', 'assignment', 'external_link', 'chapter', 'topic'],
+    },
+    parentId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Lesson',
+      default: null,
+      index: true
     },
 
     Quiz: {

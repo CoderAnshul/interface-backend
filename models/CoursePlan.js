@@ -8,7 +8,8 @@ const coursePlanSchema = new mongoose.Schema({
   description: { type: String, trim: true },
   durationType: { type: String, enum: ["Month", "Year", "Day"], required: true },
   duration: { type: Number, required: true },
-  status: { type: String, enum: ["active", "inactive"], default: "active" }
+  status: { type: String, enum: ["active", "inactive"], default: "active" },
+  allowedChapterId: { type: mongoose.Schema.Types.ObjectId, ref: "Lesson", default: null }
 }, { timestamps: true });
 
 export default mongoose.model("CoursePlan", coursePlanSchema);

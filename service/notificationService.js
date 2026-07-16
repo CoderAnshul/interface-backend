@@ -365,6 +365,11 @@ async sendToCourseStudents(courseId, data, webPushLink = null) {
     try {
       console.log(`🔔 Notifying enrolled users for course: ${courseId}`);
       
+      if (!courseId || !mongoose.isValidObjectId(courseId)) {
+        console.warn(`⚠️ notifyEnrolledUsers: Invalid or missing courseId: ${courseId}. Skipping notifications.`);
+        return;
+      }
+      
       const enrollments = await Enrollment.find({ 
         courseId: new mongoose.Types.ObjectId(courseId) 
       }).select("userId").lean();

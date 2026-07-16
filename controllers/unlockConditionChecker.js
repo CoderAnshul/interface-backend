@@ -9,12 +9,13 @@ import Quiz from '../models/Quiz.js';
 import AssignmentSubmission from '../models/assignmentSubmission.js';
 import Assignment from '../models/Assignment.js';
 import Module from '../models/Module.js';
+import CoursePlan from '../models/CoursePlan.js';
+
 /**
  * API to check if drip conditions are satisfied for unlocking content
  * POST /api/drip/check-unlock-conditions
  */
 export const checkUnlockConditions = async (req, res) => {
-    // //console.log('req.body', req.body);
     try {
         const { userId, targetId, targetType } = req.body;
 
@@ -26,7 +27,6 @@ export const checkUnlockConditions = async (req, res) => {
         }
 
         const result = await evaluateUnlockConditions(userId, targetId, targetType);
-
         return res.json(result);
 
     } catch (error) {
@@ -38,12 +38,75 @@ export const checkUnlockConditions = async (req, res) => {
         });
     }
 };
+/**
+ * Checks if a user has access to a specific lesson/chapter based on their active enrollment plan.
+ * Returns true if allowed, or false if restricted to a different chapter.
+ */
+export const isLessonAllowedForUser = async (userId, lessonId) => {
+    if (!userId || !lessonId) return true;
+    try {
+        const lesson = await Lesson.findById(lessonId).select('section parentId');
+        if (!lesson) return true;
+
+        const courseId = lesson.section;
+        if (!courseId) return true;
+
+        const enrollment = await UserCourse.findOne({
+            userId,
+            courseId,
+            status: 'active'
+        });
+
+        if (!enrollment || !enrollment.coursePlanId) {
+            return true; // No plan restrictions
+        }
+
+        const plan = await CoursePlan.findById(enrollment.coursePlanId);
+        if (!plan || !plan.allowedChapterId) {
+            return true; // Plan has no chapter restrictions
+        }
+
+        const allowedChapterIdStr = plan.allowedChapterId.toString();
+
+        // Check if lesson is equal to allowedChapterId or is a descendant of it
+        let currentId = lesson._id;
+        let parentId = lesson.parentId;
+        
+        while (currentId) {
+            if (currentId.toString() === allowedChapterIdStr) {
+                return true;
+            }
+            if (!parentId) break;
+            const parentLesson = await Lesson.findById(parentId).select('parentId');
+            currentId = parentId;
+            parentId = parentLesson?.parentId;
+        }
+
+        return false; // Restricted to another chapter
+    } catch (error) {
+        console.error('Error checking plan restriction:', error);
+        return true; // Fallback to allowed in case of error
+    }
+};
 
 /**
  * Reusable function to evaluate unlock conditions
  */
 export const evaluateUnlockConditions = async (userId, targetId, targetType, providedDripTargets = null) => {
     try {
+        if (targetType === 'lesson') {
+            const isAllowed = await isLessonAllowedForUser(userId, targetId);
+            if (!isAllowed) {
+                return {
+                    success: true,
+                    canUnlock: false,
+                    message: 'Requires subscription to this unit/chapter',
+                    satisfiedConditions: [],
+                    failedConditions: [],
+                    totalConditions: 0
+                };
+            }
+        }
         // --- Unlock module if drip is disabled for this user ---
         if (targetType === 'module') {
             const module = await Module.findById(targetId).select('dripSettingDisabledFor');

@@ -441,11 +441,93 @@ export const getCourseById = async (req, res) => {
     const userAgent = req.headers['user-agent'];
     const clientIP = req.ip || req.connection.remoteAddress;
 
-    // //console.log(`🔄 Fetching course ${id} and processing VdoCipher videos...`);
     const course = await courseService.getById(id);
     // //console.log("Course details fetched:", course);
     // //console.log("User ID:", userId);
     // //console.log("user new:",req.user)
+
+    if (course && course.modules && userId) {
+      const CourseEnrollment = (await import("../models/CourseEnrollment.js")).default;
+      const enrollment = await CourseEnrollment.findOne({
+        userId,
+        courseId: id,
+        status: 'active'
+      });
+      if (enrollment && enrollment.coursePlanId) {
+        const CoursePlan = (await import("../models/CoursePlan.js")).default;
+        const plan = await CoursePlan.findById(enrollment.coursePlanId);
+        if (plan && plan.allowedChapterId) {
+          const flatLessons = [];
+          course.modules.forEach(m => {
+            if (m.lessons) flatLessons.push(...m.lessons);
+          });
+          const parentMap = {};
+          flatLessons.forEach(l => {
+            parentMap[l._id.toString()] = l.parentId ? l.parentId.toString() : null;
+          });
+          
+          const allowedSet = new Set();
+          const allowedChapterIdStr = plan.allowedChapterId.toString();
+          
+          const checkIsAllowed = (idStr) => {
+            if (allowedSet.has(idStr)) return true;
+            if (idStr === allowedChapterIdStr) {
+              allowedSet.add(idStr);
+              return true;
+            }
+            const pId = parentMap[idStr];
+            if (pId && checkIsAllowed(pId)) {
+              allowedSet.add(idStr);
+              return true;
+            }
+            return false;
+          };
+          
+          flatLessons.forEach(l => {
+            checkIsAllowed(l._id.toString());
+          });
+
+          for (const module of course.modules) {
+            if (module.lessons) {
+              module.lessons.forEach(l => {
+                const isAllowed = allowedSet.has(l._id.toString());
+                if (!isAllowed) {
+                  l.isLocked = true;
+                  l.accessibility = 'paid';
+                  l.description = '';
+                  l.videoLessons = [];
+                  l.files = [];
+                  l.Quiz = null;
+                  l.Assignment = null;
+                  l.content = {};
+                }
+              });
+            }
+            if (module.nestedLessons) {
+              const processNested = (nestedList) => {
+                nestedList.forEach(item => {
+                  const isAllowed = allowedSet.has(item._id.toString());
+                  if (!isAllowed) {
+                    item.isLocked = true;
+                    item.accessibility = 'paid';
+                    item.description = '';
+                    item.videoLessons = [];
+                    item.files = [];
+                    item.Quiz = null;
+                    item.Assignment = null;
+                    item.content = {};
+                  }
+                  if (item.children) {
+                    processNested(item.children);
+                  }
+                });
+              };
+              processNested(module.nestedLessons);
+            }
+          }
+        }
+      }
+    }
 
     if (course && course.modules) {
 
@@ -1565,7 +1647,7 @@ export const getCourseContents = async (req, res) => {
       isDeleted: false,
     })
       .sort({ order: 1 })
-      .select('_id title order type moduleId')
+      .select('_id title order type moduleId parentId')
       .setOptions({ strictPopulate: false }) // Add this option
       .populate([
         {
@@ -1575,13 +1657,66 @@ export const getCourseContents = async (req, res) => {
 
       ]);
 
+    // Convert to plain objects so we can add runtime fields like isLocked
+    let plainModules = modules.map(m => typeof m.toObject === 'function' ? m.toObject() : m);
+    let plainLessons = lessons.map(l => typeof l.toObject === 'function' ? l.toObject() : l);
+
+    const userId = req.user?.id;
+    if (userId && courseId && plainLessons && plainLessons.length > 0) {
+      const CourseEnrollment = (await import("../models/CourseEnrollment.js")).default;
+      const enrollment = await CourseEnrollment.findOne({
+        userId,
+        courseId,
+        status: 'active'
+      });
+      if (enrollment && enrollment.coursePlanId) {
+        const CoursePlan = (await import("../models/CoursePlan.js")).default;
+        const plan = await CoursePlan.findById(enrollment.coursePlanId);
+        if (plan && plan.allowedChapterId) {
+          const parentMap = {};
+          plainLessons.forEach(l => {
+            parentMap[l._id.toString()] = l.parentId ? l.parentId.toString() : null;
+          });
+          
+          const allowedSet = new Set();
+          const allowedChapterIdStr = plan.allowedChapterId.toString();
+          
+          const checkIsAllowed = (idStr) => {
+            if (allowedSet.has(idStr)) return true;
+            if (idStr === allowedChapterIdStr) {
+              allowedSet.add(idStr);
+              return true;
+            }
+            const pId = parentMap[idStr];
+            if (pId && checkIsAllowed(pId)) {
+              allowedSet.add(idStr);
+              return true;
+            }
+            return false;
+          };
+          
+          plainLessons.forEach(l => {
+            checkIsAllowed(l._id.toString());
+          });
+
+          plainLessons.forEach(l => {
+            const isAllowed = allowedSet.has(l._id.toString());
+            if (!isAllowed) {
+              l.isLocked = true;
+              l.accessibility = 'paid';
+            }
+          });
+        }
+      }
+    }
+
     return res.status(200).json({
       success: true,
       message: 'Course contents fetched successfully',
       data: {
         ...(course && { course }),
-        modules,
-        lessons,
+        modules: plainModules,
+        lessons: plainLessons,
       },
     });
   } catch (error) {

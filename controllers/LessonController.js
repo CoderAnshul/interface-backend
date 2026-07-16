@@ -29,7 +29,7 @@ export const createLesson = async (req, res) => {
       description: `A new lesson titled "${lesson.title}" has been added to your course.`,
       type: "new_lesson",
     };
-    await NotificationService.notifyEnrolledUsers(lesson.courseId, notificationData);
+    await NotificationService.notifyEnrolledUsers(lesson.section, notificationData);
 
     const redis = await initRedis();
     await redis.del('lessons:all*');

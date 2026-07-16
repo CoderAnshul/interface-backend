@@ -150,7 +150,8 @@ class CourseService {
           durationType: plan.durationType,
           duration: Number(plan.duration),
           salePrice: plan.salePrice ? Number(plan.salePrice) : 0,
-          status: plan.status || 'active'
+          status: plan.status || 'active',
+          allowedChapterId: plan.allowedChapterId || null
         };
         if (plan._id) {
           // Update existing plan

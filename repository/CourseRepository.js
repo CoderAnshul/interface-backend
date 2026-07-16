@@ -4,6 +4,103 @@ import mongoose from 'mongoose';
 import Module from '../models/Module.js';
 
 
+function nestLessons(lessonsList) {
+  if (!lessonsList || !Array.isArray(lessonsList)) return [];
+
+  const lessonMap = {};
+  const chapters = [];
+  const topics = [];
+  const contents = [];
+
+  // Convert mongoose documents to plain objects if they are mongoose docs
+  const plainLessons = lessonsList.map(lesson => {
+    const obj = typeof lesson.toObject === 'function' ? lesson.toObject() : { ...lesson };
+    obj.children = [];
+    return obj;
+  });
+
+  // Sort by order ascending
+  plainLessons.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  // Map by id
+  plainLessons.forEach(lesson => {
+    lessonMap[lesson._id.toString()] = lesson;
+    if (lesson.type === 'chapter') {
+      chapters.push(lesson);
+    } else if (lesson.type === 'topic') {
+      topics.push(lesson);
+    } else {
+      contents.push(lesson);
+    }
+  });
+
+  // Link topics to chapters
+  topics.forEach(topic => {
+    if (topic.parentId) {
+      const parentChapter = lessonMap[topic.parentId.toString()];
+      if (parentChapter) {
+        parentChapter.children.push(topic);
+      } else {
+        chapters.push(topic);
+      }
+    } else {
+      chapters.push(topic);
+    }
+  });
+
+  // Link content to topics
+  contents.forEach(content => {
+    if (content.parentId) {
+      const parentTopic = lessonMap[content.parentId.toString()];
+      if (parentTopic) {
+        parentTopic.children.push(content);
+      } else {
+        chapters.push(content);
+      }
+    } else {
+      chapters.push(content);
+    }
+  });
+
+  // Sort children recursively
+  chapters.forEach(chap => {
+    if (chap.children) {
+      chap.children.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      chap.children.forEach(top => {
+        if (top.children) {
+          top.children.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        }
+      });
+    }
+  });
+
+  return chapters;
+}
+
+function postProcessCourse(course) {
+  if (!course) return null;
+
+  // Sort modules by order ascending
+  if (course.modules && Array.isArray(course.modules)) {
+    course.modules.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    
+    // Process lessons for each module
+    for (const module of course.modules) {
+      if (module.lessons && Array.isArray(module.lessons)) {
+        // Nest lessons to construct the hierarchical structure
+        module.nestedLessons = nestLessons(module.lessons);
+        
+        // Keep sorting the flat lessons list just in case
+        module.lessons.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      } else {
+        module.nestedLessons = [];
+      }
+    }
+  }
+  return course;
+}
+
+
 class CourseRepository extends CrudRepository {
   constructor() {
     super(Course);
@@ -136,6 +233,12 @@ class CourseRepository extends CrudRepository {
 
       // Count total documents for pagination meta
       const total = await Course.countDocuments(query);
+
+      if (data && Array.isArray(data)) {
+        data.forEach(course => {
+          postProcessCourse(course);
+        });
+      }
 
       return {
         data,
@@ -986,16 +1089,7 @@ class CourseRepository extends CrudRepository {
 
       const course = response[0];
 
-      // Sort modules by order ascending
-      if (course.modules && Array.isArray(course.modules)) {
-        course.modules.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-        // Sort lessons in each module by order ascending
-        for (const module of course.modules) {
-          if (module.lessons && Array.isArray(module.lessons)) {
-            module.lessons.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-          }
-        }
-      }
+      postProcessCourse(course);
 
       // Post-process to add VdoCipher OTP data to video lessons
       if (course.modules && course.modules.length > 0) {

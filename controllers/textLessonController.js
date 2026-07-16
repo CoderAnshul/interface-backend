@@ -36,7 +36,7 @@ export const createTextLesson = async (req, res) => {
       title: 'New File Available',
       body: `A new file titled "${lesson.title}" has been added to your course.`,
     };
-    await NotificationService.notifyEnrolledUsers(lesson.courseId, notificationData);
+    await NotificationService.notifyEnrolledUsers(lesson.course, notificationData);
 
     res
       .status(201)
