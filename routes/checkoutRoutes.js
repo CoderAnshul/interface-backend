@@ -6,7 +6,8 @@ import {
     getMyPurchases,
     checkOrder,
     importStudents,
-    verifyCashfreePayment
+    verifyCashfreePayment,
+    getHierarchyOptions
 } from '../controllers/checkoutController.js';
 import accessTokenAutoRefresh from '../middlewares/accessTokenAutoRefresh.js';
 import passport from 'passport';
@@ -28,6 +29,9 @@ router.post('/check-order', checkOrder);
 
 // ✅ Verify Cashfree payment after redirect
 router.post('/verify-cashfree', verifyCashfreePayment);
+
+// Get hierarchy dropdown options
+router.get('/hierarchy-options', getHierarchyOptions);
 
 // Import students
 router.post('/import-students', upload.single('file'), importStudents);

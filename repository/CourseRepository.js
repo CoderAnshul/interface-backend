@@ -15,7 +15,8 @@ function nestLessons(lessonsList) {
   // Convert mongoose documents to plain objects if they are mongoose docs
   const plainLessons = lessonsList.map(lesson => {
     const obj = typeof lesson.toObject === 'function' ? lesson.toObject() : { ...lesson };
-    obj.children = [];
+    obj.lessons = [];
+    obj.children = obj.lessons; // Alias children to lessons
     return obj;
   });
 
@@ -39,7 +40,7 @@ function nestLessons(lessonsList) {
     if (topic.parentId) {
       const parentChapter = lessonMap[topic.parentId.toString()];
       if (parentChapter) {
-        parentChapter.children.push(topic);
+        parentChapter.lessons.push(topic);
       } else {
         chapters.push(topic);
       }
@@ -53,7 +54,7 @@ function nestLessons(lessonsList) {
     if (content.parentId) {
       const parentTopic = lessonMap[content.parentId.toString()];
       if (parentTopic) {
-        parentTopic.children.push(content);
+        parentTopic.lessons.push(content);
       } else {
         chapters.push(content);
       }
@@ -64,11 +65,11 @@ function nestLessons(lessonsList) {
 
   // Sort children recursively
   chapters.forEach(chap => {
-    if (chap.children) {
-      chap.children.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-      chap.children.forEach(top => {
-        if (top.children) {
-          top.children.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    if (chap.lessons) {
+      chap.lessons.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      chap.lessons.forEach(top => {
+        if (top.lessons) {
+          top.lessons.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
         }
       });
     }
@@ -88,11 +89,13 @@ function postProcessCourse(course) {
     for (const module of course.modules) {
       if (module.lessons && Array.isArray(module.lessons)) {
         // Nest lessons to construct the hierarchical structure
-        module.nestedLessons = nestLessons(module.lessons);
+        module.chapters = nestLessons(module.lessons);
+        module.nestedLessons = module.chapters; // Keep alias for backward compatibility
         
         // Keep sorting the flat lessons list just in case
         module.lessons.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
       } else {
+        module.chapters = [];
         module.nestedLessons = [];
       }
     }
@@ -1856,7 +1859,9 @@ class CourseRepository extends CrudRepository {
 
       if (!response || response.length === 0) return null;
 
-      return response[0];
+      const course = response[0];
+      postProcessCourse(course);
+      return course;
     } catch (error) {
       console.error('Error in findBySlug:', error.message);
       throw new Error(`Failed to fetch course: ${error.message}`);

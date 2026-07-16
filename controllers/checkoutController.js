@@ -18,6 +18,255 @@ import CourseEnrollment from "../models/CourseEnrollment.js";
 import Course from "../models/Course.js";
 import CourseBundle from "../models/CourseBundle.js";
 import Coupon from "../models/Coupon.js";
+import CourseCategory from "../models/CourseCategory.js";
+import Lesson from "../models/Lesson.js";
+import CoursePlan from "../models/CoursePlan.js";
+
+// Helper to resolve hierarchy select (Class, Subject, Chapter/Topic) into amount and items
+const resolveHierarchy = async ({ classId, courseId, chapterId }) => {
+  // 1. Whole Class selected
+  if (classId && !courseId) {
+    const category = await CourseCategory.findById(classId);
+    if (!category) {
+      throw new Error("Class (Category) not found");
+    }
+
+    // Find all courses under this category
+    const courses = await Course.find({ categoryId: classId, isDeleted: false, isPublished: true });
+    if (!courses || courses.length === 0) {
+      throw new Error("No courses found under this Class");
+    }
+
+    let totalAmount = 0;
+    const items = [];
+
+    for (const course of courses) {
+      // Check if there is a full-course plan (allowedChapterId: null)
+      const plan = await CoursePlan.findOne({ courseId: course._id, allowedChapterId: null, status: "active" });
+      let coursePrice = 0;
+      if (plan) {
+        coursePrice = plan.salePrice !== undefined && plan.salePrice > 0 ? plan.salePrice : plan.price;
+        items.push({
+          courseId: course._id,
+          coursePlanId: plan._id,
+          type: "coursePlan",
+          pricePaid: coursePrice,
+          currency: "INR"
+        });
+      } else {
+        coursePrice = course.salePrice && parseFloat(course.salePrice.toString()) > 0
+          ? parseFloat(course.salePrice.toString())
+          : parseFloat((course.price || 0).toString());
+        items.push({
+          courseId: course._id,
+          type: "course",
+          pricePaid: coursePrice,
+          currency: course.currency || "INR"
+        });
+      }
+      totalAmount += coursePrice;
+    }
+
+    return {
+      amount: totalAmount,
+      items,
+      description: `Purchase whole Class: ${category.name}`
+    };
+  }
+
+  // 2. Subject selected
+  if (classId && courseId && !chapterId) {
+    const course = await Course.findById(courseId);
+    if (!course) {
+      throw new Error("Subject (Course) not found");
+    }
+
+    // Check if there is a full-subject plan
+    const plan = await CoursePlan.findOne({ courseId: course._id, allowedChapterId: null, status: "active" });
+    let amount = 0;
+    const items = [];
+
+    if (plan) {
+      amount = plan.salePrice !== undefined && plan.salePrice > 0 ? plan.salePrice : plan.price;
+      items.push({
+        courseId: course._id,
+        coursePlanId: plan._id,
+        type: "coursePlan",
+        pricePaid: amount,
+        currency: "INR"
+      });
+    } else {
+      amount = course.salePrice && parseFloat(course.salePrice.toString()) > 0
+        ? parseFloat(course.salePrice.toString())
+        : parseFloat((course.price || 0).toString());
+      items.push({
+        courseId: course._id,
+        type: "course",
+        pricePaid: amount,
+        currency: course.currency || "INR"
+      });
+    }
+
+    return {
+      amount,
+      items,
+      description: `Purchase Subject: ${course.title}`
+    };
+  }
+
+  // 3. Chapter/Topic selected
+  if (classId && courseId && chapterId) {
+    const course = await Course.findById(courseId);
+    if (!course) {
+      throw new Error("Subject (Course) not found");
+    }
+
+    // Find specific plan for this chapter/topic
+    const plan = await CoursePlan.findOne({ courseId: courseId, allowedChapterId: chapterId, status: "active" });
+    if (!plan) {
+      throw new Error("No active subscription plan found for the selected Chapter/Topic");
+    }
+
+    const amount = plan.salePrice !== undefined && plan.salePrice > 0 ? plan.salePrice : plan.price;
+    const items = [{
+      courseId: course._id,
+      coursePlanId: plan._id,
+      type: "coursePlan",
+      pricePaid: amount,
+      currency: "INR"
+    }];
+
+    return {
+      amount,
+      items,
+      description: `Purchase Chapter/Topic from Subject: ${course.title}`
+    };
+  }
+
+  throw new Error("Invalid hierarchy selection");
+};
+
+// Controller to get drop-down selections and their prices dynamically
+export const getHierarchyOptions = async (req, res) => {
+  try {
+    const { classId, courseId } = req.query;
+
+    // 1. If classId and courseId are both provided, return the chapters/topics under that course (subject)
+    if (classId && courseId) {
+      const course = await Course.findById(courseId);
+      if (!course) {
+        return res.status(404).json({ success: false, message: "Course not found" });
+      }
+
+      // Fetch all lessons of type 'chapter' or 'topic' under this course
+      const chapters = await Lesson.find({
+        section: courseId,
+        type: { $in: ['chapter', 'topic'] },
+        isActive: true
+      }).sort({ order: 1 });
+
+      // For each chapter/topic, find the associated CoursePlan
+      const resolvedChapters = await Promise.all(chapters.map(async (chap) => {
+        const plan = await CoursePlan.findOne({
+          courseId: courseId,
+          allowedChapterId: chap._id,
+          status: "active"
+        });
+
+        return {
+          _id: chap._id,
+          title: chap.title,
+          type: chap.type,
+          parentId: chap.parentId,
+          price: plan ? (plan.salePrice > 0 ? plan.salePrice : plan.price) : null,
+          planId: plan ? plan._id : null
+        };
+      }));
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          chapters: resolvedChapters
+        }
+      });
+    }
+
+    // 2. If classId is provided but courseId is not, return courses (subjects) under that class
+    if (classId) {
+      const courses = await Course.find({ categoryId: classId, isDeleted: false, isPublished: true }).sort({ coursePosition: 1 });
+
+      const resolvedCourses = await Promise.all(courses.map(async (course) => {
+        // Find if there is a full-course plan
+        const plan = await CoursePlan.findOne({
+          courseId: course._id,
+          allowedChapterId: null,
+          status: "active"
+        });
+
+        const price = plan
+          ? (plan.salePrice > 0 ? plan.salePrice : plan.price)
+          : (course.salePrice && parseFloat(course.salePrice.toString()) > 0 ? parseFloat(course.salePrice.toString()) : parseFloat((course.price || 0).toString()));
+
+        return {
+          _id: course._id,
+          title: course.title,
+          slug: course.slug,
+          price: price,
+          planId: plan ? plan._id : null
+        };
+      }));
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          courses: resolvedCourses
+        }
+      });
+    }
+
+    // 3. If neither is provided, return all classes (categories)
+    const categories = await CourseCategory.find({ isDeleted: false, status: "active" }).sort({ createdAt: 1 });
+
+    const resolvedCategories = await Promise.all(categories.map(async (cat) => {
+      // Calculate total price of all courses under this category
+      const courses = await Course.find({ categoryId: cat._id, isDeleted: false, isPublished: true });
+      let totalPrice = 0;
+
+      for (const course of courses) {
+        const plan = await CoursePlan.findOne({
+          courseId: course._id,
+          allowedChapterId: null,
+          status: "active"
+        });
+
+        const price = plan
+          ? (plan.salePrice > 0 ? plan.salePrice : plan.price)
+          : (course.salePrice && parseFloat(course.salePrice.toString()) > 0 ? parseFloat(course.salePrice.toString()) : parseFloat((course.price || 0).toString()));
+
+        totalPrice += price;
+      }
+
+      return {
+        _id: cat._id,
+        name: cat.name,
+        slug: cat.slug,
+        price: totalPrice
+      };
+    }));
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        classes: resolvedCategories
+      }
+    });
+
+  } catch (error) {
+    console.error("Error in getHierarchyOptions:", error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 import { generateOrderNumber } from "../utils/generateOrderNo.js";
 import LessonProgress from "../models/LessonProgress.js";
 import Certificate from "../models/Certificate.js";
@@ -1321,7 +1570,9 @@ export const checkOrder = async (req, res) => {
       couponCode,
       is_verify,
       referralCode,
-      ebookId // <-- support ebook
+      ebookId, // <-- support ebook
+      classId,
+      chapterId
     } = req.body;
 
     console.log("checkOrder - Received referralCode:", referralCode);
@@ -1445,9 +1696,9 @@ export const checkOrder = async (req, res) => {
     }
 
     // Validate that at least one ID is provided
-    if (!courseId && !courseBundleId && !coursePlanId && !req.body.ebookId) {
+    if (!courseId && !courseBundleId && !coursePlanId && !req.body.ebookId && !classId) {
       return res.status(400).json({
-        message: "At least one of courseId, courseBundleId, coursePlanId, or ebookId is required",
+        message: "At least one of courseId, courseBundleId, coursePlanId, ebookId, or classId is required",
         is_valid: false
       });
     }
@@ -1455,7 +1706,15 @@ export const checkOrder = async (req, res) => {
     let amount = 0;
 
     const isFallbackPlanOrder = typeof coursePlanId === 'string' && coursePlanId.startsWith('fallback-');
-    if (coursePlanId && !isFallbackPlanOrder && mongoose.Types.ObjectId.isValid(coursePlanId)) {
+    if (classId) {
+      try {
+        const resolved = await resolveHierarchy({ classId, courseId, chapterId });
+        amount = resolved.amount;
+        console.log("Hierarchy resolved successfully in checkOrder, amount:", amount);
+      } catch (err) {
+        return res.status(400).json({ message: err.message, is_valid: false });
+      }
+    } else if (coursePlanId && !isFallbackPlanOrder && mongoose.Types.ObjectId.isValid(coursePlanId)) {
       try {
         const CoursePlan = (await import('../models/CoursePlan.js')).default;
         if (!CoursePlan) {
@@ -2186,7 +2445,9 @@ export const buyNow = async (req, res) => {
       fcmToken,
       company,
       referralCode, // <-- Support referral code in buyNow
-      ebookId // <-- Support ebook
+      ebookId, // <-- Support ebook
+      classId,
+      chapterId
     } = req.body;
 
     console.log("buyNow - Destructured referralCode:", referralCode);
@@ -2198,8 +2459,8 @@ export const buyNow = async (req, res) => {
 
 
     // Validate required fields
-    if (!courseId && !courseBundleId && !coursePlanId && !ebookId) {
-      return res.status(400).json({ message: "Course, bundle, plan, or ebook ID is required" });
+    if (!courseId && !courseBundleId && !coursePlanId && !ebookId && !classId) {
+      return res.status(400).json({ message: "Course, bundle, plan, ebook, or class ID is required" });
     }
     if (!guestEmail) {
       return res.status(400).json({ message: "Guest email is required" });
@@ -2301,7 +2562,18 @@ export const buyNow = async (req, res) => {
     let subTotal = 0;
     let courseIdsToEnroll = new Set();
 
-    if (effectiveCoursePlanId && (isFallback || mongoose.Types.ObjectId.isValid(effectiveCoursePlanId))) {
+    if (classId) {
+      try {
+        const resolved = await resolveHierarchy({ classId, courseId, chapterId });
+        items = resolved.items;
+        subTotal = resolved.amount;
+        resolved.items.forEach(item => {
+          if (item.courseId) courseIdsToEnroll.add(item.courseId.toString());
+        });
+      } catch (err) {
+        return res.status(400).json({ message: err.message });
+      }
+    } else if (effectiveCoursePlanId && (isFallback || mongoose.Types.ObjectId.isValid(effectiveCoursePlanId))) {
       const CoursePlan = (await import('../models/CoursePlan.js')).default;
       let plan;
       if (isFallback) {

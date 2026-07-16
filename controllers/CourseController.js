@@ -517,8 +517,9 @@ export const getCourseById = async (req, res) => {
                     item.Assignment = null;
                     item.content = {};
                   }
-                  if (item.children) {
-                    processNested(item.children);
+                  const children = item.lessons || item.children;
+                  if (children && children.length > 0) {
+                    processNested(children);
                   }
                 });
               };
