@@ -15,7 +15,7 @@ settingSchema.statics.getGstRate = async function () {
   if (!setting) {
     setting = await this.create({
       key: "gstRate",
-      value: 0.18, // Default GST rate of 18%
+      value: 0, // Default GST rate of 0%
       description: "Default GST rate for order calculations",
     });
   }

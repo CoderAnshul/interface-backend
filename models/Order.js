@@ -19,8 +19,7 @@ const orderSchema = new Schema({
     grandTotal: { type: mongoose.Types.Decimal128, required: true },
     // ✅ GST/company info for order
     company: {
-        name: { type: String, trim: true },
-        gstNumber: { type: String, default: null }
+        name: { type: String, trim: true }
     },
     payment: {
         provider: { type: String, enum: ['stripe', 'razorpay', 'cashfree', 'paypal', 'free', 'manual'], required: true },

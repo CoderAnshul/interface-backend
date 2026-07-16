@@ -68,13 +68,13 @@ class EmailService {
   getFrom(type = "transactional") {
     switch (type) {
       case "transactional":
-        return `"Edrilla" <${process.env.TransactionalEmail || "noreply@edrilla.com"}>`;
+        return `"Dipani" <${process.env.TransactionalEmail || "noreply@edrilla.com"}>`;
       case "founder":
-        return `"Sahil (Edrilla)" <${process.env.FounderEmail || "sahil@edrilla.com"}>`;
+        return `"Dipani" <${process.env.FounderEmail || "sahil@edrilla.com"}>`;
       case "support":
-        return `"Edrilla Support" <${process.env.SupportEmail || "support@edrilla.com"}>`;
+        return `"Dipani Support" <${process.env.SupportEmail || "support@edrilla.com"}>`;
       default:
-        return `"Edrilla" <${process.env.TransactionalEmail || "noreply@edrilla.com"}>`;
+        return `"Dipani" <${process.env.TransactionalEmail || "noreply@edrilla.com"}>`;
     }
   }
 
@@ -112,7 +112,7 @@ class EmailService {
 
     try {
       const info = await this.getTransporter("transactional").sendMail(mailOptions);
-      //console.log('✅ OTP email sent:', info.messageId);
+      console.log('✅ OTP email sent:', info.messageId);
       return { success: true, messageId: info.messageId };
     } catch (error) {
       console.error('❌ Error sending OTP email:', error);
@@ -124,7 +124,7 @@ class EmailService {
    * Send password reset email (Transactional)
    */
   async sendPasswordResetEmail(email, resetToken, userName) {
-    const resetUrl = `${process.env.FRONTEND_URL || "https://edrilla.com"
+    const resetUrl = `${process.env.FRONTEND_URL || "https://dipaniglobaledu.com"
       }/reset-password?token=${resetToken}`;
 
     const mailOptions = {
@@ -148,7 +148,7 @@ class EmailService {
                     <!-- Header with Logo -->
                     <tr>
                         <td style="background-color: #93bb3d; padding: 30px 40px; text-align: center;">
-                            <img src="https://edrilla.com/logo.svg" alt="Edrilla Logo" style="height: 40px; width: auto; display: block; margin: 0 auto 15px auto;">
+                            <img src="https://dipaniglobaledu.com/logo.svg" alt="Edrilla Logo" style="height: 40px; width: auto; display: block; margin: 0 auto 15px auto;">
                             <h1 style="color: #191a17; margin: 0; font-size: 24px; font-weight: bold;">Password Reset Request</h1>
                         </td>
                     </tr>
@@ -246,13 +246,12 @@ class EmailService {
         <h2>Course Enrollment Confirmation</h2>
         <p>Hello <strong>${name}</strong>,</p>
         <p>Thank you for enrolling in our course(s)! Your enrollment is now confirmed and you can start learning right away.</p>
-        ${
-        password !== null && password !== undefined && password !== ''
+        ${password !== null && password !== undefined && password !== ''
           ? `
           <p>Your login details are as follows:</p>
           <p><strong>Email:</strong> ${email}</p>
           <p><strong>Password:</strong> ${password}</p>
-          <a href="${process.env.FRONTEND_URL || 'https://edrilla.com'}/login" style="padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+          <a href="${process.env.FRONTEND_URL || 'https://dipaniglobaledu.com'}/login" style="padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
             Login to your account
           </a>
           `
@@ -353,7 +352,7 @@ class EmailService {
                         <img src="https://img.icons8.com/ios-filled/50/000000/mac-os.png" alt="App Store" width="20" style="vertical-align:middle; margin-right:5px;">
                         App Store
                     </a>
-                    <a href="https://edrilla.com/login" class="download-btn" target="_blank">🌐 Web App</a>
+                    <a href="https://dipaniglobaledu.com/login" class="download-btn" target="_blank">🌐 Web App</a>
                 </div>
             </div>
             <p class="message-text">If you have any questions or need assistance, our support team is here for you.</p>

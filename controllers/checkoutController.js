@@ -551,19 +551,13 @@ function renderInvoiceHtml(order, guestUser, company) {
             </div>
           </div>
           
-          ${company && (company.name || company.gstNumber) ? `
+          ${company && company.name ? `
           <div class="billing-card">
             <h3>Company Details</h3>
             ${company.name ? `
             <div class="billing-item">
               <span class="billing-label">Company:</span>
               <div class="billing-value">${company.name}</div>
-            </div>
-            ` : ""}
-            ${company.gstNumber ? `
-            <div class="billing-item">
-              <span class="billing-label">GST No:</span>
-              <div class="billing-value">${company.gstNumber}</div>
             </div>
             ` : ""}
           </div>
@@ -638,10 +632,6 @@ function renderInvoiceHtml(order, guestUser, company) {
             <div class="summary-row">
               <span class="summary-label">Discount</span>
               <span class="summary-value">-â‚¹${parseFloat(order.discount).toFixed(2)}</span>
-            </div>
-            <div class="summary-row">
-              <span class="summary-label">GST (${parseFloat(order.gstRate) * 100}%)</span>
-              <span class="summary-value">â‚¹${parseFloat(order.tax).toFixed(2)}</span>
             </div>
             <div class="summary-row">
               <span class="summary-label">Total Amount</span>
@@ -794,17 +784,10 @@ export const checkout = async (req, res) => {
       await coupon.save();
     }
 
-    // Step 4: Fetch GST rate
-    let GST_RATE;
-    try {
-      GST_RATE = await Setting.getGstRate(); // Get GST rate (defaults to 0.18)
-    } catch (err) {
-      console.error("Error fetching GST rate:", err);
-      return res.status(500).json({ message: "Failed to fetch GST rate", error: err.message });
-    }
     const taxableAmount = subTotal - discount;
-    const tax = parseFloat((taxableAmount * GST_RATE).toFixed(2)); // Calculate GST
-    const grandTotal = parseFloat((taxableAmount + tax).toFixed(2)); // Add GST to grand total
+    const tax = 0; // GST removed
+    const grandTotal = parseFloat(taxableAmount.toFixed(2)); 
+    const GST_RATE = 0; // GST removed
 
     // Step 4.5: Get partner referral info if user was referred by a partner
     const partnerReferralInfo = await getPartnerReferralInfo(userId);
@@ -1555,22 +1538,10 @@ export const checkOrder = async (req, res) => {
       }
     }
 
-    // Get GST rate with error handling
-    let GST_RATE;
-    try {
-      GST_RATE = await Setting.getGstRate();
-    } catch (gstError) {
-      console.error("Error fetching GST rate:", gstError);
-      return res.status(500).json({
-        message: "Failed to fetch GST rate",
-        error: gstError.message,
-        is_valid: false
-      });
-    }
-
     const taxableAmount = parseFloat(amount) - parseFloat(discount);
-    const tax = parseFloat((taxableAmount * GST_RATE).toFixed(2));
-    amount = parseFloat((taxableAmount + tax).toFixed(2));
+    const tax = 0; // GST removed
+    amount = parseFloat(taxableAmount.toFixed(2));
+    const GST_RATE = 0; // GST removed
 
     if (amount > 0) {
       // ── Cashfree: Create a payment session ───────────────────────────────

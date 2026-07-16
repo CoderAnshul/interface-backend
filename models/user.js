@@ -90,7 +90,6 @@ const userSchema = new mongoose.Schema({
   // gstNumber and CompanyName grouped under company
   company: {
     name: { type: String, trim: true },
-    gstNumber: { type: String, default: null },
     referralCode: { type: String, trim: true, unique: true, sparse: true }, // Added referralCode
   },
 

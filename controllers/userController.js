@@ -2968,9 +2968,9 @@ export const initiatePartnerPayment = async (req, res) => {
       }
     }
 
-    const GST_RATE = await Setting.getGstRate();
-    const tax = parseFloat((registrationFee * GST_RATE).toFixed(2));
-    const grandTotal = parseFloat((registrationFee + tax).toFixed(2));
+    const tax = 0; // GST removed
+    const grandTotal = parseFloat(registrationFee.toFixed(2));
+    const GST_RATE = 0; // GST removed
 
     if (grandTotal <= 0) {
        return res.status(400).json({ success: false, message: "Payment amount is 0, cannot initiate payment." });

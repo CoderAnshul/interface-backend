@@ -67,19 +67,15 @@ class EventService {
         .populate('organizer', 'fullName email')
         .lean();
 
-      const GST_RATE = await Setting.getGstRate();
       events.forEach(event => {
-        //add gst in  price if price > 0
+        // GST removed, price stays as is
         if (event.price && event.price > 0) {
-          event.GST_RATE = GST_RATE;
+          event.GST_RATE = 0;
           const price = parseFloat(event.price.toString());
-          const tax = parseFloat((price * GST_RATE).toFixed(2));
-          const priceWithTax = parseFloat((price + tax).toFixed(2));
           event.originalPrice = price;
-          event.tax = tax;
-          event.price = priceWithTax;
+          event.tax = 0;
+          event.price = price;
         }
-
       });
 
 
@@ -105,16 +101,13 @@ class EventService {
 
       if (!event) throw new Error('Event not found');
 
-      //add GST_RATE and price with tax if price > 0
-      const GST_RATE = await Setting.getGstRate();
+      // GST removed, price stays as is
       if (event.price && event.price > 0) {
-        event.GST_RATE = GST_RATE;
+        event.GST_RATE = 0;
         const price = parseFloat(event.price.toString());
-        const tax = parseFloat((price * GST_RATE).toFixed(2));
-        const priceWithTax = parseFloat((price + tax).toFixed(2));
         event.originalPrice = price;
-        event.tax = tax;
-        event.price = priceWithTax;
+        event.tax = 0;
+        event.price = price;
       }
 
       return event;
@@ -242,11 +235,11 @@ class EventService {
       const ticketPrice = event.price || 0;
       const ticketNo = await this.generateTicketNumber();
 
-      // Calculate taxes and total
-      const GST_RATE = await Setting.getGstRate();
+      // Calculate taxes and total (GST removed)
+      const GST_RATE = 0;
       const subTotal = ticketPrice;
-      const tax = parseFloat((subTotal * GST_RATE).toFixed(2));
-      const total = parseFloat(subTotal) + parseFloat(tax);
+      const tax = 0;
+      const total = parseFloat(subTotal);
 
       // // Razorpay payment capture logic for paid events
       // if (event.price > 0 && ticketData.paymentId && ticketData.paymentId !== 'FREE_EVENT') {
@@ -438,10 +431,6 @@ class EventService {
               <tr>
                 <td>Event Ticket</td>
                 <td>₹${parseFloat(data.amount.toString()).toFixed(2)}</td>
-              </tr>
-              <tr>
-                <td>GST (${(data.gstRate * 100).toFixed(2)}%)</td>
-                <td>₹${data.tax.toFixed(2)}</td>
               </tr>
               <tr>
                 <td><strong>Total</strong></td>

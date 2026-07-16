@@ -361,9 +361,8 @@ export const syncMissingPartnerOrders = async (req, res) => {
                 try {
                     const orderNo = await generateOrderNumber();
                     const totalAmount = regPay.amount;
-                    // Assume 18% GST was included in the total amount
-                    const subTotal = parseFloat((totalAmount / 1.18).toFixed(2));
-                    const tax = parseFloat((totalAmount - subTotal).toFixed(2));
+                    const subTotal = totalAmount;
+                    const tax = 0;
                     
                     await Order.create({
                         orderNo,
@@ -377,7 +376,7 @@ export const syncMissingPartnerOrders = async (req, res) => {
                         }],
                         subTotal,
                         tax,
-                        gstRate: 18,
+                        gstRate: 0,
                         grandTotal: totalAmount,
                         payment: {
                             provider: regPay.method || 'manual',

@@ -460,8 +460,7 @@ export const purchaseEbook = async (req, res) => {
         if (company && (company.name || company.gstNumber)) {
             await User.findByIdAndUpdate(userId, {
                 $set: {
-                    "company.name": company.name || "",
-                    "company.gstNumber": company.gstNumber || null
+                    "company.name": company.name || ""
                 }
             });
         }
@@ -489,18 +488,10 @@ export const purchaseEbook = async (req, res) => {
             }
         }
 
-        // Step 4: Calculate GST and totals
-        let GST_RATE;
-        try {
-            GST_RATE = await Setting.getGstRate();
-        } catch (err) {
-            console.error("Error fetching GST rate:", err);
-            return res.status(500).json({ message: "Failed to fetch GST rate", error: err.message });
-        }
-
         const taxableAmount = subTotal - discount;
-        const tax = parseFloat((taxableAmount * GST_RATE).toFixed(2));
-        const grandTotal = parseFloat((taxableAmount + tax).toFixed(2));
+        const tax = 0; // GST removed
+        const grandTotal = parseFloat(taxableAmount.toFixed(2));
+        const GST_RATE = 0; // GST removed
 
         /*
         // Step 5: Handle Razorpay payment capture (if not free)
@@ -576,8 +567,7 @@ export const purchaseEbook = async (req, res) => {
                 status: grandTotal === 0 || paymentProvider === "razorpay" ? "paid" : "pending",
             },
             company: {
-                name: company?.name || "",
-                gstNumber: company?.gstNumber || null
+                name: company?.name || ""
             },
             referredByPartner: partnerReferralInfo || {
                 partnerId: null,
@@ -707,8 +697,8 @@ export const purchaseEbook = async (req, res) => {
             message: "Ebook purchased successfully",
             order: {
                 ...newOrder.toObject(),
-                tax: newOrder.tax.toString(),
-                gstRate: newOrder.gstRate.toString(),
+                tax: "0",
+                gstRate: "0",
                 subTotal: newOrder.subTotal.toString(),
                 discount: newOrder.discount.toString(),
                 grandTotal: newOrder.grandTotal.toString(),
